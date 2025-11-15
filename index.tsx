@@ -1,4 +1,15 @@
-/** * @license * SPDX-License-Identifier: Apache-2.0 */ const DEFAULT_DIALOG_MODEL = 'gemini-2.5-flash-preview-native-audio-dialog'; const DEFAULT_IMAGE_MODEL = 'imagen-4.0-fast-generate-001'; const DEFAULT_INTERRUPT_SENSITIVITY = StartSensitivity.START_SENSITIVITY_HIGH; const AVAILABLE_DIALOG_MODELS = [ { id: 'gemini-2.5-flash-preview-native-audio-dialog', label: '2.5 preview native audio dialog' } ]; const AVAILABLE_IMAGE_MODELS = [ { id: 'imagen-4.0-fast-generate-001', label: 'imagen 4 Fast' }, { id: 'imagen-4.0-generate-001', label: 'imagen 4' } ]; const SCREEN_PADDING = 30; // Padding in pixels around the imagine component
+/** * @license * SPDX-License-Identifier: Apache-2.0 */
+const DEFAULT_DIALOG_MODEL = 'gemini-2.5-flash-preview-native-audio-dialog';
+const DEFAULT_IMAGE_MODEL = 'imagen-4.0-fast-generate-001';
+const DEFAULT_INTERRUPT_SENSITIVITY = StartSensitivity.START_SENSITIVITY_HIGH;
+const AVAILABLE_DIALOG_MODELS = [
+  { id: 'gemini-2.5-flash-preview-native-audio-dialog', label: '2.5 preview native audio dialog' }
+];
+const AVAILABLE_IMAGE_MODELS = [
+  { id: 'imagen-4.0-fast-generate-001', label: 'imagen 4 Fast' },
+  { id: 'imagen-4.0-generate-001', label: 'imagen 4' }
+];
+const SCREEN_PADDING = 30; // Padding in pixels around the imagine component
 const CLICK_SOUND_URL = 'click-sound.mp3';
 const GENERATING_VIDEO_URL = 'generating.mp4';
 const CLAYMOJIS_URL = 'claymojis.png';
@@ -9,12 +20,16 @@ const QUIET_THRESHOLD = 0.2; // Adjust this value based on testing
 const QUIET_DURATION = 2000; // milliseconds
 const EXTENDED_QUIET_DURATION = 10000; // milliseconds
 
+// FIX: Define AIStudio interface to resolve type conflict with existing declarations.
+// The error message indicates that 'window.aistudio' is expected to be of type 'AIStudio'.
+interface AIStudio {
+  getHostUrl(): Promise<string>;
+}
+
 declare global {
   interface Window {
     webkitAudioContext: typeof AudioContext;
-    aistudio?: {
-      getHostUrl(): Promise<string>;
-    };
+    aistudio?: AIStudio;
   }
 }
 
@@ -1111,6 +1126,7 @@ const ImagineComponent = defineComponent({
     const selectedInterruptSensitivity = ref<StartSensitivity>(DEFAULT_INTERRUPT_SENSITIVITY);
     const showShareModal = ref<boolean>(false);
     const showRawModal = ref<boolean>(false);
+    const showHelpModal = ref<boolean>(false);
     const isCopied = ref<boolean>(false);
     const isConnecting = ref<boolean>(false);
     const actualVoicePrompt = ref<string>('');
@@ -2017,6 +2033,7 @@ Current time is ${new Date().toLocaleTimeString()}. Just say a very short introd
       updateDescription,
       playClickSound,
       showShareModal,
+      showHelpModal,
       isConnecting,
       isCopied,
       getShareUrl,
@@ -2057,6 +2074,7 @@ Current time is ${new Date().toLocaleTimeString()}. Just say a very short introd
 
   template: `
     <div class="lg:w-[1000px] lg:mx-auto font-sans relative flex flex-col text-black items-center justify-center">
+    <button @click="showHelpModal = true" class="absolute top-4 right-4 z-50 bg-black/20 hover:bg-black/30 rounded-full w-12 h-12 flex items-center justify-center transition-colors text-white text-2xl font-bold">?</button>
     <transition name="elasticBottom" appear>
       <div id="imagine" class="top-0 lg:top-10 absolute w-full flex lg:flex-col">
         <div class="pb-64 lg:pb-10 flex lg:flex-row flex-col">
@@ -2492,6 +2510,27 @@ Current time is ${new Date().toLocaleTimeString()}. Just say a very short introd
         {{ isCopied ? 'Copied!' : 'Copy URL' }}
       </button>
     </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div v-if="showHelpModal" class="font-sans fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-3xl font-bold text-black">How to Play</h2>
+          <button @click="showHelpModal = false" class="text-black hover:text-black/80">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="space-y-4 overflow-y-auto flex-1 text-black text-lg">
+            <p><strong class="text-xl">1. Choose a Voice:</strong><br/>Select one of the unique TTS voices from the dropdown to give your character a voice.</p>
+            <p><strong class="text-xl">2. Build a Character:</strong><br/>Pick a Character, Role, Mood, and Style using the clay emoji buttons. Feeling adventurous? Click the dice for a random combination!</p>
+            <p><strong class="text-xl">3. Meet Your Avatar:</strong><br/>Once all four categories are selected, your character will appear and introduce themselves.</p>
+            <p><strong class="text-xl">4. Have a Conversation:</strong><br/>The microphone icon means the character is listening. Just start talking to have a conversation! You can interrupt them at any time. Click the waveform button to stop.</p>
+            <p><strong class="text-xl">5. Share & Remix:</strong><br/>Use the <strong class="inline-flex items-center justify-center bg-black/20 rounded-full w-6 h-6 align-middle"><svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 0 24 24" width="16"><path d="M0 0h24v24H0z" fill="none"></path><path fill="black" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"></path></svg></strong> button to share your creation with a friend, or the <strong class="inline-flex items-center justify-center bg-black/20 rounded-full w-6 h-6 align-middle"><svg xmlns="http://www.w3.org/2000/svg" height="16" viewBox="0 0 24 24" width="16"><path d="M0 0h24v24H0V0z" fill="none"></path><path fill="black" d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"></path></svg></strong> button to get a new look for your character.</p>
+        </div>
+      </div>
     </div>
 
     <!-- Raw Prompts Modal -->
